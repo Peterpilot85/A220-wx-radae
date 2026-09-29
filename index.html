@@ -22,6 +22,10 @@ input{width:100%;margin-top:6px;padding:13px;border-radius:11px;border:1px solid
 .cap{font-size:10px;color:var(--muted);letter-spacing:.06em}.value{font-size:22px;font-weight:700;margin-top:5px}
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{font-size:12px;color:var(--muted)}.metric b{display:block;color:var(--text);font-size:16px;margin-top:4px}
 svg{width:100%;height:auto;margin-top:12px}.note{font-size:12px;line-height:1.45;color:var(--muted)}.note strong{color:var(--text)}
+.tiltbox input{text-align:center;font-weight:700}
+.tiltbuttons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:7px}
+.tiltbuttons button{appearance:none;border:1px solid var(--line);background:#132331;color:var(--text);border-radius:9px;padding:10px 2px;font-size:13px;font-weight:650;touch-action:manipulation}
+.tiltbuttons button:active{transform:scale(.97);background:#1a3142}
 @media(min-width:560px){.inputs{grid-template-columns:1fr 1fr 1fr}}
 </style>
 </head>
@@ -32,7 +36,16 @@ svg{width:100%;height:auto;margin-top:12px}.note{font-size:12px;line-height:1.45
 <div class="inputs">
 <label>Aircraft altitude (ft)<input id="alt" type="number" inputmode="numeric" value="39000" step="100"></label>
 <label>Target range (NM)<input id="range" type="number" inputmode="decimal" value="40" step="1" min="1"></label>
-<label>Selected tilt (°)<input id="tilt" type="number" inputmode="decimal" value="0" step="0.1"></label>
+<label>Selected tilt (°)
+<div class="tiltbox">
+  <input id="tilt" type="number" value="0" step="0.1" readonly>
+  <div class="tiltbuttons">
+    <button type="button" data-delta="-1">−1°</button>
+    <button type="button" data-delta="-0.1">−0.1°</button>
+    <button type="button" data-delta="0.1">+0.1°</button>
+    <button type="button" data-delta="1">+1°</button>
+  </div>
+</div></label>
 </div></div>
 
 <div class="card">
@@ -76,6 +89,11 @@ function calc(){
  $("beam").setAttribute("points",`72,105 570,${Math.max(25,cy-sp)} 570,${Math.min(190,cy+sp)}`);
  $("centerline").setAttribute("y2",cy);
 }
-["alt","range","tilt"].forEach(x=>$(x).addEventListener("input",calc)); calc();
+document.querySelectorAll(".tiltbuttons button").forEach(btn=>btn.addEventListener("click",()=>{
+ const next=Math.round((+$("tilt").value + +btn.dataset.delta)*10)/10;
+ $("tilt").value=Math.max(-15,Math.min(15,next)).toFixed(1);
+ calc();
+}));
+["alt","range"].forEach(x=>$(x).addEventListener("input",calc)); calc();
 if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js"));
 </script></body></html>
