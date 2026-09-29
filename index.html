@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b1118">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="A220 WX">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>A220 WX Radar Beam</title>
+<style>
+:root{color-scheme:dark;--bg:#071018;--card:#101b25;--line:#334553;--muted:#9eabb5;--text:#f4f7f9;--beam:#36a9e1}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:720px;margin:auto;padding:calc(env(safe-area-inset-top) + 18px) 14px calc(env(safe-area-inset-bottom) + 20px)}
+h1{font-size:18px;margin:0}.sub{font-size:12px;color:var(--muted);margin:5px 0 18px}
+.card{background:var(--card);border:1px solid #253543;border-radius:16px;padding:16px;margin-bottom:12px}
+.inputs{display:grid;grid-template-columns:1fr;gap:12px} label{font-size:13px;color:#cbd3d9}
+input{width:100%;margin-top:6px;padding:13px;border-radius:11px;border:1px solid var(--line);background:#09131c;color:white;font-size:20px}
+.results{display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center}.results>div+div{border-left:1px solid var(--line)}
+.cap{font-size:10px;color:var(--muted);letter-spacing:.06em}.value{font-size:22px;font-weight:700;margin-top:5px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{font-size:12px;color:var(--muted)}.metric b{display:block;color:var(--text);font-size:16px;margin-top:4px}
+svg{width:100%;height:auto;margin-top:12px}.note{font-size:12px;line-height:1.45;color:var(--muted)}.note strong{color:var(--text)}
+.tiltbox input{text-align:center;font-weight:700}
+.tiltbuttons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:7px}
+.tiltbuttons button{appearance:none;border:1px solid var(--line);background:#132331;color:var(--text);border-radius:9px;padding:10px 2px;font-size:13px;font-weight:650;touch-action:manipulation}
+.tiltbuttons button:active{transform:scale(.97);background:#1a3142}
+@media(min-width:560px){.inputs{grid-template-columns:1fr 1fr 1fr}}
+</style>
+</head>
+<body><main>
+<div class="card">
+<h1>A220 MULTISCAN • MANUAL BEAM</h1>
+<div class="sub">18 in antenna • nominal 5.2° beam width (±2.6°)</div>
+<div class="inputs">
+<label>Aircraft altitude (ft)<input id="alt" type="number" inputmode="numeric" value="39000" step="100"></label>
+<label>Target range (NM)<input id="range" type="number" inputmode="decimal" value="40" step="1" min="1"></label>
+<label>Selected tilt (°)
+<div class="tiltbox">
+  <input id="tilt" type="number" value="0" step="0.1" readonly>
+  <div class="tiltbuttons">
+    <button type="button" data-delta="-1">−1°</button>
+    <button type="button" data-delta="-0.1">−0.1°</button>
+    <button type="button" data-delta="0.1">+0.1°</button>
+    <button type="button" data-delta="1">+1°</button>
+  </div>
+</div></label>
+</div></div>
+
+<div class="card">
+<div class="results">
+<div><div class="cap">UPPER EDGE</div><div id="upper" class="value"></div></div>
+<div><div class="cap">BEAM CENTRE</div><div id="centre" class="value"></div></div>
+<div><div class="cap">LOWER EDGE</div><div id="lower" class="value"></div></div>
+</div>
+<svg viewBox="0 0 640 220" aria-label="Nominal weather radar beam side view">
+<line x1="62" y1="105" x2="575" y2="105" stroke="#334553" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon id="beam" points="72,105 570,52 570,158" fill="#36a9e1" opacity=".22"/>
+<line id="centerline" x1="72" y1="105" x2="570" y2="105" stroke="#36a9e1" stroke-width="3"/>
+<path d="M38 91 L80 105 L38 119 L50 105 Z" fill="#f4f7f9"/>
+<line x1="570" y1="25" x2="570" y2="190" stroke="#334553"/>
+<text id="ut" x="562" y="20" text-anchor="end" font-size="14" fill="#f4f7f9"></text>
+<text id="ct" x="562" y="99" text-anchor="end" font-size="14" fill="#f4f7f9"></text>
+<text id="lt" x="562" y="211" text-anchor="end" font-size="14" fill="#f4f7f9"></text>
+<text id="rt" x="320" y="205" text-anchor="middle" font-size="13" fill="#9eabb5"></text>
+</svg>
+</div>
+
+<div class="card metrics">
+<div class="metric">1° CENTRE SHIFT<b id="shift"></b></div>
+<div class="metric">NOMINAL HALF-WIDTH<b id="half"></b></div>
+</div>
+
+<div class="card note"><strong>Beam geometry only — not a CB-top detector.</strong> Uses the quick cockpit approximation of 100 ft per NM per degree. Upper/lower values are the nominal 5.2° beam envelope. Weak or absent returns do not establish the physical cloud top or safe overflight clearance. Approved SOP/OM and radar guidance take precedence.</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function fl(n){return n<=1000?"SURFACE":"FL"+String(Math.round(n/100)).padStart(3,"0")}
+function num(n){return Math.round(n).toLocaleString("en-US")}
+function calc(){
+ const a=+$("alt").value,r=+$("range").value,t=+$("tilt").value;
+ if(![a,r,t].every(Number.isFinite)||r<=0)return;
+ const one=r*100,c=a+one*t,h=one*2.6,u=c+h,l=c-h;
+ $("upper").textContent=fl(u); $("centre").textContent=fl(c); $("lower").textContent=fl(l);
+ $("shift").textContent="≈ "+num(one)+" ft"; $("half").textContent="≈ ±"+num(h)+" ft";
+ $("ut").textContent=fl(u)+" upper"; $("ct").textContent=fl(c)+" centre"; $("lt").textContent=fl(l)+" lower"; $("rt").textContent=r+" NM";
+ const cy=Math.max(48,Math.min(165,105-t*4)), sp=52;
+ $("beam").setAttribute("points",`72,105 570,${Math.max(25,cy-sp)} 570,${Math.min(190,cy+sp)}`);
+ $("centerline").setAttribute("y2",cy);
+}
+document.querySelectorAll(".tiltbuttons button").forEach(btn=>btn.addEventListener("click",()=>{
+ const next=Math.round((+$("tilt").value + +btn.dataset.delta)*10)/10;
+ $("tilt").value=Math.max(-15,Math.min(15,next)).toFixed(1);
+ calc();
+}));
+["alt","range"].forEach(x=>$(x).addEventListener("input",calc)); calc();
+if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js"));
+</script></body></html>
