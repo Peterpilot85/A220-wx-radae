@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#071018">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="A220 WX">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>A220 WX Radar</title>
+<style>
+:root{color-scheme:dark;--bg:#071018;--card:#101b25;--line:#334553;--muted:#9eabb5;--text:#f4f7f9;--beam:#36a9e1;--accent:#5fc3f3}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:720px;margin:auto;padding:calc(env(safe-area-inset-top) + 16px) 14px calc(env(safe-area-inset-bottom) + 22px)}
+.card{background:var(--card);border:1px solid #253543;border-radius:16px;padding:16px;margin-bottom:12px}
+h1{font-size:18px;margin:0}.sub{font-size:12px;color:var(--muted);margin:5px 0 14px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px}.tab{border:1px solid var(--line);background:#0b1620;color:var(--muted);padding:11px;border-radius:10px;font-weight:700}
+.tab.active{background:#173248;color:#fff;border-color:#3f7595}.panel{display:none}.panel.active{display:block}
+.inputs{display:grid;grid-template-columns:1fr;gap:12px}label{font-size:13px;color:#cbd3d9}
+input{width:100%;margin-top:6px;padding:13px;border-radius:11px;border:1px solid var(--line);background:#09131c;color:white;font-size:20px}
+.tiltbox input{text-align:center;font-weight:700}.tiltbuttons{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:7px}
+.tiltbuttons button{appearance:none;border:1px solid var(--line);background:#132331;color:var(--text);border-radius:9px;padding:11px 2px;font-size:13px;font-weight:650;touch-action:manipulation}
+.tiltbuttons button:active{transform:scale(.97);background:#1a3142}
+.results{display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center}.results>div+div{border-left:1px solid var(--line)}
+.cap{font-size:10px;color:var(--muted);letter-spacing:.06em}.value{font-size:22px;font-weight:700;margin-top:5px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{font-size:12px;color:var(--muted)}.metric b{display:block;color:var(--text);font-size:16px;margin-top:4px}
+svg{width:100%;height:auto;margin-top:12px}.note{font-size:12px;line-height:1.5;color:var(--muted)}.note strong{color:var(--text)}
+.echoTitle{font-size:11px;letter-spacing:.08em;color:var(--muted);text-align:center}.echoValue{text-align:center;font-size:48px;font-weight:800;margin:7px 0 2px}
+.echoDelta{text-align:center;color:#cbd3d9;font-size:14px}.echoGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:15px}
+.echoBox{background:#0b1620;border:1px solid #263847;border-radius:11px;padding:11px;text-align:center}.echoBox span{display:block;font-size:10px;color:var(--muted);letter-spacing:.05em}.echoBox b{display:block;margin-top:5px;font-size:19px}
+.math{font-size:14px;line-height:1.7}.math div{border-bottom:1px solid #263847;padding:5px 0}.math div:last-child{border:0}
+.warning{border-color:#4a4a35}.warning strong{display:block;margin-bottom:5px}
+@media(min-width:560px){.inputs{grid-template-columns:1fr 1fr 1fr}}
+</style></head>
+<body><main>
+<div class="card">
+<h1>A220 MULTISCAN • MANUAL RADAR</h1>
+<div class="sub">18 in antenna • nominal 5.2° beam width (±2.6°)</div>
+<div class="tabs"><button id="beamTab" class="tab active">BEAM</button><button id="echoTab" class="tab">ECHO TOP</button></div>
+</div>
+
+<section id="beamPanel" class="panel active">
+<div class="card"><div class="inputs">
+<label>Aircraft altitude (ft)<input id="bAlt" type="number" inputmode="numeric" value="39000" step="100"></label>
+<label>Target range (NM)<input id="bRange" type="number" inputmode="decimal" value="40" step="1" min="1"></label>
+<label>Selected tilt (°)<div class="tiltbox"><input id="bTilt" type="number" value="0.0" readonly>
+<div class="tiltbuttons" data-target="bTilt"><button data-d="-1">−1°</button><button data-d="-.1">−0.1°</button><button data-zero>0°</button><button data-d=".1">+0.1°</button><button data-d="1">+1°</button></div></div></label>
+</div></div>
+<div class="card"><div class="results">
+<div><div class="cap">UPPER EDGE</div><div id="upper" class="value"></div></div>
+<div><div class="cap">BEAM CENTRE</div><div id="centre" class="value"></div></div>
+<div><div class="cap">LOWER EDGE</div><div id="lower" class="value"></div></div></div>
+<svg viewBox="0 0 640 220"><line x1="62" y1="105" x2="575" y2="105" stroke="#334553" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon id="beam" points="72,105 570,52 570,158" fill="#36a9e1" opacity=".22"/><line id="centerline" x1="72" y1="105" x2="570" y2="105" stroke="#36a9e1" stroke-width="3"/>
+<path d="M38 91 L80 105 L38 119 L50 105 Z" fill="#f4f7f9"/><line x1="570" y1="25" x2="570" y2="190" stroke="#334553"/>
+<text id="ut" x="562" y="20" text-anchor="end" font-size="14" fill="#f4f7f9"></text><text id="ct" x="562" y="99" text-anchor="end" font-size="14" fill="#f4f7f9"></text><text id="lt" x="562" y="211" text-anchor="end" font-size="14" fill="#f4f7f9"></text><text id="rt" x="320" y="205" text-anchor="middle" font-size="13" fill="#9eabb5"></text></svg>
+</div>
+<div class="card metrics"><div class="metric">1° CENTRE SHIFT<b id="shift"></b></div><div class="metric">NOMINAL HALF-WIDTH<b id="half"></b></div></div>
+<div class="card note"><strong>Beam geometry only.</strong> Uses the quick cockpit approximation of 100 ft per NM per degree. Upper/lower values show the nominal 5.2° beam envelope.</div>
+</section>
+
+<section id="echoPanel" class="panel">
+<div class="card"><div class="inputs">
+<label>Aircraft altitude (ft)<input id="eAlt" type="number" inputmode="numeric" value="39000" step="100"></label>
+<label>Range to return (NM)<input id="eRange" type="number" inputmode="decimal" value="20" step="1" min="1"></label>
+<label>Zero-echo tilt (°)<div class="tiltbox"><input id="eTilt" type="number" value="5.0" readonly>
+<div class="tiltbuttons" data-target="eTilt"><button data-d="-1">−1°</button><button data-d="-.1">−0.1°</button><button data-zero>0°</button><button data-d=".1">+0.1°</button><button data-d="1">+1°</button></div></div></label>
+</div></div>
+<div class="card">
+<div class="echoGrid"><div class="echoBox"><span>ZERO-ECHO TILT</span><b id="zeroTilt"></b></div><div class="echoBox"><span>LOWER BEAM EDGE</span><b id="edgeTilt"></b></div></div>
+<div class="echoTitle" style="margin-top:18px">ESTIMATED RADAR ECHO TOP</div><div id="echoTop" class="echoValue"></div><div id="echoDelta" class="echoDelta"></div>
+</div>
+<div class="card math"><div id="m1"></div><div id="m2"></div><div id="m3"></div></div>
+<div class="card note warning"><strong>RADAR ECHO TOP — NOT PHYSICAL CB TOP</strong>The zero-echo technique estimates the upper extent of radar-detectable reflectivity using the nominal lower beam edge. Weakly reflective ice/cloud may extend above the detected echo. Do not use this result to establish safe overflight clearance. Approved SOP/OM and radar guidance take precedence.</div>
+</section>
+<script>
+const $=x=>document.getElementById(x), fmt=n=>n<=1000?"SURFACE":"FL"+String(Math.round(n/100)).padStart(3,"0"), num=n=>Math.round(n).toLocaleString("en-US"), ang=n=>(n>=0?"+":"")+n.toFixed(1)+"°";
+function beamCalc(){const a=+$("bAlt").value,r=+$("bRange").value,t=+$("bTilt").value;if(![a,r,t].every(Number.isFinite)||r<=0)return;const one=r*100,c=a+one*t,h=one*2.6,u=c+h,l=c-h;$("upper").textContent=fmt(u);$("centre").textContent=fmt(c);$("lower").textContent=fmt(l);$("shift").textContent="≈ "+num(one)+" ft";$("half").textContent="≈ ±"+num(h)+" ft";$("ut").textContent=fmt(u)+" upper";$("ct").textContent=fmt(c)+" centre";$("lt").textContent=fmt(l)+" lower";$("rt").textContent=r+" NM";const cy=Math.max(48,Math.min(165,105-t*4)),sp=52;$("beam").setAttribute("points",`72,105 570,${Math.max(25,cy-sp)} 570,${Math.min(190,cy+sp)}`);$("centerline").setAttribute("y2",cy)}
+function echoCalc(){const a=+$("eAlt").value,r=+$("eRange").value,t=+$("eTilt").value;if(![a,r,t].every(Number.isFinite)||r<=0)return;const edge=t-2.6,delta=edge*r*100,top=a+delta;$("zeroTilt").textContent=ang(t);$("edgeTilt").textContent=ang(edge);$("echoTop").textContent=fmt(top);$("echoDelta").textContent=(delta>=0?"+":"−")+" "+num(Math.abs(delta))+" ft relative to aircraft";$("m1").textContent=`${ang(t)} − 2.6° = ${ang(edge)}`;$("m2").textContent=`${edge.toFixed(1)} × ${r} NM × 100 = ${delta>=0?"+":""}${num(delta)} ft`;$("m3").textContent=`${fmt(a)} ${delta>=0?"+":"−"} ${num(Math.abs(delta))} ft = ${fmt(top)}`}
+document.querySelectorAll(".tiltbuttons").forEach(group=>{const target=$(group.dataset.target);group.querySelectorAll("button").forEach(btn=>btn.addEventListener("click",()=>{if(btn.hasAttribute("data-zero"))target.value="0.0";else target.value=(Math.round((+target.value + +btn.dataset.d)*10)/10).toFixed(1);target.id==="bTilt"?beamCalc():echoCalc()}))});
+["bAlt","bRange"].forEach(x=>$(x).addEventListener("input",beamCalc));["eAlt","eRange"].forEach(x=>$(x).addEventListener("input",echoCalc));
+function tab(which){const b=which==="beam";$("beamPanel").classList.toggle("active",b);$("echoPanel").classList.toggle("active",!b);$("beamTab").classList.toggle("active",b);$("echoTab").classList.toggle("active",!b)}
+$("beamTab").onclick=()=>tab("beam");$("echoTab").onclick=()=>tab("echo");beamCalc();echoCalc();
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").then(r=>r.update()));
+</script></body></html>
